@@ -2080,6 +2080,15 @@ int cas_authenticate(request_rec *r)
 	ticket = getCASTicket(r);
 	cookieString = getCASCookie(r, (ssl ? d->CASSecureCookie : d->CASCookie));
 
+	// Resolves the infinite LOOP problem when mod_auth_cas removes "ticket = ST-" which is expected by some protected CAS applications.
+	// See: https://github.com/apereo/mod_auth_cas/issues/144
+	if((ticket != NULL)&&(cookieString != NULL)&&(isValidCASCookie(r, c, cookieString, &remoteUser, &attrs))){
+                r->user = remoteUser;
+                if(d->CASAuthNHeader != NULL)
+                        apr_table_set(r->headers_in, d->CASAuthNHeader, remoteUser);
+                return OK;
+        }
+	
 	// only remove parameters if a ticket was found (makes no sense to do this otherwise)
 	if(ticket != NULL)
 		parametersRemoved = removeCASParams(r);
